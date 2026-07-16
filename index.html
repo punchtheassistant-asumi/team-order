@@ -99,8 +99,8 @@ main{max-width:640px;margin:0 auto;padding:18px 14px 96px;}
 .mi-p{font-size:9px;color:var(--mu);margin-top:2px;}
 
 /* ── SELECTION BAR ── */
-.selbar{position:fixed;bottom:0;left:0;right:0;background:var(--gd);color:#fff;padding:11px 16px;display:flex;align-items:center;gap:9px;z-index:200;transform:translateY(100%);transition:transform .28s cubic-bezier(.25,.8,.25,1);}
-.selbar.vis{transform:translateY(0);}
+.selbar{display:none;background:var(--gd);color:#fff;padding:8px 16px 4px;border-radius:12px 12px 0 0;}
+.selbar.vis{display:block;}
 .sel-cnt{background:var(--gold);color:var(--gd);font-weight:900;font-size:14px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .sel-t{flex:1;font-size:11px;}
 .sel-it{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px;}
@@ -208,7 +208,7 @@ main{max-width:640px;margin:0 auto;padding:18px 14px 96px;}
 .btn-s:hover{border-color:var(--g);color:var(--g);}
 .btn-gold{background:var(--gold);color:var(--gd);}
 .btn-gold:hover{background:#B8922A;transform:translateY(-1px);}
-.btnwrap{position:fixed;bottom:0;left:0;right:0;padding:10px 14px;background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:100;}
+.btnwrap{position:fixed;bottom:0;left:0;right:0;padding:0 14px 10px;background:linear-gradient(to top,var(--bg) 80%,transparent);z-index:100;}
 .btnwrap .btn{max-width:640px;margin:0 auto;}
 .toast{position:fixed;bottom:68px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--gd);color:#fff;padding:9px 16px;border-radius:40px;font-size:11px;font-weight:600;opacity:0;transition:all .25s;z-index:600;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -327,11 +327,11 @@ main{max-width:640px;margin:0 auto;padding:18px 14px 96px;}
   </div>
 </main>
 
-<div class="selbar" id="selbar">
-  <div class="sel-cnt" id="selCnt">0</div>
-  <div class="sel-t">Selected<div class="sel-it" id="selItems"></div></div>
-</div>
 <div class="btnwrap" id="btnWrap" style="display:none;">
+  <div class="selbar" id="selbar">
+    <div class="sel-cnt" id="selCnt">0</div>
+    <div class="sel-t">Selected<div class="sel-it" id="selItems"></div></div>
+  </div>
   <button class="btn btn-g" id="btnNext" onclick="goToConfirm()" disabled>Select items first</button>
 </div>
 
