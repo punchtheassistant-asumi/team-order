@@ -64,6 +64,15 @@ main{max-width:640px;margin:0 auto;padding:18px 14px 96px;}
 .punch-msg{font-size:13px;font-weight:600;color:#2d1f4a;line-height:1.5;}
 .punch-sub{font-size:11px;color:#7B4FC9;margin-top:3px;}
 
+
+/* ── NAME INPUT ── */
+.name-input-wrap{display:flex;flex-direction:column;gap:12px;margin-top:4px;}
+.name-input{width:100%;padding:16px 18px;font-size:17px;border:2px solid var(--bd);border-radius:14px;background:var(--w);color:var(--tx);outline:none;transition:border-color .18s;font-family:var(--font);}
+.name-input:focus{border-color:var(--g);}
+.name-go-btn{width:100%;font-size:16px;padding:16px;}
+.already-hdr{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--mu);margin:22px 0 10px;padding-left:4px;}
+.already-chip{display:inline-flex;align-items:center;gap:5px;background:var(--gl);color:var(--gd);font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;margin:0 5px 6px 0;}
+
 /* ── MENU ── */
 .menu-hdr{margin-bottom:14px;}
 .menu-hdr h2{font-size:18px;font-weight:800;}
@@ -269,20 +278,19 @@ main{max-width:640px;margin:0 auto;padding:18px 14px 96px;}
 <main id="mainContent">
   <!-- SCREEN 1: NAME -->
   <div class="screen active" id="sName">
-    <div class="name-hdr">
-      <div class="ico">☕</div>
-      <h2>Who are you?</h2>
-      <p>Select your name to proceed to the menu.<br>One submission per person.</p>
-    </div>
     <div class="punch-card">
       <div class="punch-avatar-emoji">🐒</div>
       <div class="punch-bubble">
         <div class="punch-from">Asumi's Assistant</div>
         <div class="punch-msg">Hi! I'm Punch 👊<br>I'll be taking your orders today ☕</div>
-        <div class="punch-sub">Tap your name to start!</div>
+        <div class="punch-sub">Enter your name to start!</div>
       </div>
     </div>
-    <div class="name-grid" id="nameGrid"></div>
+    <div class="name-input-wrap">
+      <input class="name-input" id="nameInput" type="text" placeholder="Your name" autocomplete="off" autocapitalize="words" maxlength="40">
+      <button class="btn btn-g name-go-btn" id="nameGoBtn" onclick="submitName()">Let's go →</button>
+    </div>
+    <div id="alreadyOrdered"></div>
   </div>
 
   <!-- SCREEN 2: MENU -->
@@ -340,7 +348,7 @@ main{max-width:640px;margin:0 auto;padding:18px 14px 96px;}
     <div class="asec-t" style="margin-bottom:12px;">Orders by Item</div>
     <div id="admList"><div class="lding"><div class="spin"></div>Loading...</div></div>
     <div class="vtable" id="vtable">
-      <div class="vtable-hdr">📝 Participant Status (11)</div>
+      <div class="vtable-hdr" id="vtableHdr">📝 Participant Status</div>
       <div id="voterRows"></div>
     </div>
     <button class="rbtn" onclick="resetAll()">🗑 Reset All Data</button>
@@ -365,19 +373,7 @@ try{firebase.initializeApp(firebaseConfig);db=firebase.firestore();useFirebase=!
 /* ================================================================
    PARTICIPANTS
 ================================================================ */
-const PEOPLE=[
-  {id:'paul',      name:'Paul',      last:'Firth'},
-  {id:'kai',       name:'Kai',       last:'Fukazawa'},
-  {id:'kiel',      name:'Kiel',      last:'Hamm'},
-  {id:'eric',      name:'Eric',      last:'Jung'},
-  {id:'paloma',    name:'Paloma',    last:'Andres'},
-  {id:'catherine', name:'Catherine', last:'Leung'},
-  {id:'asumi',     name:'Asumi',     last:'Takebayashi'},
-  {id:'robin',     name:'Robin',     last:'Sakai'},
-  {id:'kei',       name:'Kei',       last:'Morikawa'},
-  {id:'shivani',   name:'Shivani',   last:'Nehru'},
-  {id:'sho',       name:'Sho',       last:'Ninagawa'},
-];
+// Names are entered freely — no pre-set list
 
 /* ================================================================
    SIZE CONFIG
@@ -515,7 +511,7 @@ function setVotedLocal(id){const v=getVotedLocal();v[id]=true;localStorage.setIt
    INIT
 ================================================================ */
 document.addEventListener('DOMContentLoaded',()=>{
-  renderNameGrid();
+  setupNameInput();
   renderMenuSections();
   if(window.location.hash==='#admin')showAdmin();
   if(!useFirebase){
@@ -527,32 +523,55 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 /* ================================================================
-   NAME GRID
+   NAME INPUT
 ================================================================ */
-async function renderNameGrid(){
-  const grid=document.getElementById('nameGrid');
-  let votedFB={};
-  if(useFirebase){try{const s=await db.collection('votes').get();s.forEach(d=>{votedFB[d.id]=true;});}catch(e){}}
-  const votedL=getVotedLocal();
-  PEOPLE.forEach(p=>{
-    const voted=useFirebase?!!votedFB[p.id]:!!votedL[p.id];
-    const btn=document.createElement('div');
-    btn.className='name-btn'+(voted?' voted':'');
-    btn.id='nb-'+p.id;
-    btn.innerHTML=`<div class="nb-avatar">👤</div><div class="nb-name">${p.name}<br><span style="font-weight:400;color:var(--mu);font-size:10px;">${p.last}</span></div>${voted?'<div class="nb-voted">✅ Submitted</div>':''}`;
-    if(!voted)btn.addEventListener('click',()=>pickName(p,btn));
-    grid.appendChild(btn);
+async function setupNameInput(){
+  const input=document.getElementById('nameInput');
+  const btn=document.getElementById('nameGoBtn');
+  // Enter key submits
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')submitName();});
+  input.addEventListener('input',()=>{
+    btn.disabled=input.value.trim().length<1;
   });
+  btn.disabled=true;
+  // Show who has already ordered
+  await renderAlreadyOrdered();
 }
-function pickName(p,btn){
-  document.querySelectorAll('.name-btn.picked').forEach(b=>b.classList.remove('picked'));
-  btn.classList.add('picked');currentPerson=p;
-  setTimeout(()=>{if(currentPerson?.id===p.id)proceedToMenu();},350);
+
+async function renderAlreadyOrdered(){
+  const wrap=document.getElementById('alreadyOrdered');
+  let names=[];
+  if(useFirebase){
+    try{const s=await db.collection('votes').get();s.forEach(d=>{names.push(d.id);});}catch(e){}
+  } else {
+    const v=getVotedLocal();names=Object.keys(v);
+  }
+  if(names.length===0){wrap.innerHTML='';return;}
+  wrap.innerHTML=`<div class="already-hdr">Already ordered (${names.length})</div>`
+    +names.map(n=>`<span class="already-chip">✅ ${n}</span>`).join('');
+}
+
+async function submitName(){
+  const input=document.getElementById('nameInput');
+  const name=input.value.trim();
+  if(!name)return;
+  // Check if already submitted
+  if(useFirebase){
+    try{
+      const s=await db.collection('votes').doc(name).get();
+      if(s.exists){showToast(name+' has already submitted their order ✋');return;}
+    }catch(e){}
+  } else {
+    const v=getVotedLocal();
+    if(v[name]){showToast(name+' has already submitted their order ✋');return;}
+  }
+  currentPerson={id:name,name:name,last:''};
+  proceedToMenu();
 }
 async function proceedToMenu(){
   if(!currentPerson)return;
   if(useFirebase){try{const s=await db.collection('votes').doc(currentPerson.id).get();if(s.exists){const b=document.getElementById('nb-'+currentPerson.id);if(b){b.classList.remove('picked');b.classList.add('voted');}showToast(currentPerson.name+' has already submitted their order ✋');currentPerson=null;return;}}catch(e){}}
-  document.getElementById('nameBadge').textContent='👤 '+currentPerson.name+' '+currentPerson.last;
+  document.getElementById('nameBadge').textContent='👤 '+currentPerson.name;
   cart=[];
   showScreen('sMenu');setStep(2);
   document.getElementById('btnWrap').style.display='block';
@@ -864,7 +883,7 @@ function renderAdmin(votes){
   document.getElementById('totPeople').textContent=totalPeople;
   document.getElementById('totAmount').textContent='¥'+totalAmount.toLocaleString();
   document.getElementById('admMeta').textContent=
-    `Last updated: ${new Date().toLocaleTimeString('en-US')} — ${totalPeople}/11 participants`;
+    `Last updated: ${new Date().toLocaleTimeString('en-US')} — ${totalPeople} participant${totalPeople!==1?'s':''}`;
 
   // ── item ranking ──
   const sorted=Object.values(counts).sort((a,b)=>b.count-a.count);
@@ -889,22 +908,20 @@ function renderAdmin(votes){
 
   // ── participant table ──
   const votedMap={};votes.forEach(v=>{votedMap[v.id]=v;});
-  document.getElementById('voterRows').innerHTML=PEOPLE.map(p=>{
-    const v=votedMap[p.id];
-    if(v){
-      const itemsHtml=(v.items||[]).map(i=>{
-        const tempTag=i.temp==='hot'?'<span class="tag-hot">HOT</span>':i.temp==='ice'?'<span class="tag-ice">ICE</span>':'';
-        const szTag=i.size?`<span class="tag-size">${i.size}</span>`:'';
-        return `${i.name.slice(0,12)} ${tempTag}${szTag}`;
-      }).join('<br>');
-      return `<div class="vrow">
-        <div class="vrow-name">✅ ${p.name}<br><span style="font-weight:400;color:var(--mu);font-size:10px;">${p.last}</span></div>
-        <div class="vrow-items">${itemsHtml}<br><span style="font-weight:700;color:var(--gd)">¥${(v.total||0).toLocaleString()}</span></div>
-      </div>`;
-    }
-    return `<div class="vrow" style="opacity:.5">
-      <div class="vrow-name">⏳ ${p.name}<br><span style="font-weight:400;color:var(--mu);font-size:10px;">${p.last}</span></div>
-      <div class="vrow-items" style="color:var(--mu)">Pending</div>
+  const allNames=Object.keys(votedMap);
+  document.getElementById('vtableHdr').textContent=`📝 Participant Status (${allNames.length})`;
+  document.getElementById('voterRows').innerHTML=allNames.length===0
+    ?'<div style="text-align:center;padding:20px;color:var(--mu);font-size:13px;">No orders yet</div>'
+    :allNames.map(name=>{
+    const v=votedMap[name];
+    const itemsHtml=(v.items||[]).map(i=>{
+      const tempTag=i.temp==='hot'?'<span class="tag-hot">HOT</span>':i.temp==='ice'?'<span class="tag-ice">ICE</span>':'';
+      const szTag=i.size?`<span class="tag-size">${i.size}</span>`:'';
+      return `${i.name.slice(0,14)} ${tempTag}${szTag}`;
+    }).join('<br>');
+    return `<div class="vrow">
+      <div class="vrow-name">✅ ${name}</div>
+      <div class="vrow-items">${itemsHtml}<br><span style="font-weight:700;color:var(--gd)">¥${(v.total||0).toLocaleString()}</span></div>
     </div>`;
   }).join('');
 }
