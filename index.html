@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>☕ Starbucks atré Meguro 1 — Order Collection</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --g:#00704A;--gd:#1E3932;--gl:#D4E9E2;
+  --gold:#CBA258;--bg:#F8F4EF;--w:#fff;
+  --tx:#1E1E1E;--mu:#6B6B6B;--bd:#E0D6CC;--red:#C8352B;
+  --font:'Helvetica Neue','Hiragino Sans',Arial,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100vh;}
+
+/* ── HEADER ── */
+header{background:var(--gd);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.logo{width:38px;height:38px;background:var(--g);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.h-title{font-size:15px;font-weight:700;line-height:1.2;}
+.h-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px;}
+.h-btn{margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#fff;font-size:11px;padding:5px 11px;border-radius:20px;cursor:pointer;white-space:nowrap;}
+.h-btn:hover{background:rgba(255,255,255,.2);}
+
+/* ── PROGRESS ── */
+.pg{background:var(--gd);padding:0 18px 12px;}
+.pg-steps{display:flex;max-width:380px;}
+.stp{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;}
+.stp:not(:last-child)::after{content:'';position:absolute;top:12px;left:50%;width:100%;height:2px;background:rgba(255,255,255,.15);z-index:0;}
+.stp.done:not(:last-child)::after{background:var(--g);}
+.stp-n{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.1);color:rgba(255,255,255,.35);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;transition:all .25s;}
+.stp.act .stp-n{background:var(--gold);color:var(--gd);}
+.stp.done .stp-n{background:var(--g);color:#fff;}
+.stp-l{font-size:9px;color:rgba(255,255,255,.4);}
+.stp.act .stp-l,.stp.done .stp-l{color:rgba(255,255,255,.75);}
+
+main{max-width:640px;margin:0 auto;padding:18px 14px 96px;}
+.screen{display:none;}.screen.active{display:block;}
+
+/* ── NAME PICKER ── */
+.name-hdr{text-align:center;margin-bottom:20px;}
+.name-hdr .ico{font-size:44px;margin-bottom:10px;}
+.name-hdr h2{font-size:19px;font-weight:800;margin-bottom:6px;}
+.name-hdr p{color:var(--mu);font-size:13px;line-height:1.55;}
+.name-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+@media(min-width:480px){.name-grid{grid-template-columns:repeat(4,1fr);}}
+.name-btn{background:var(--w);border:2px solid var(--bd);border-radius:14px;padding:14px 10px;cursor:pointer;text-align:center;transition:all .18s;user-select:none;position:relative;}
+.name-btn:hover{border-color:var(--g);box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-2px);}
+.name-btn.picked{border-color:var(--g);background:var(--gl);}
+.name-btn.picked::after{content:'✓';position:absolute;top:7px;right:9px;background:var(--g);color:#fff;width:16px;height:16px;border-radius:50%;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;}
+.name-btn.voted{border-color:var(--bd);background:#f5f5f5;cursor:not-allowed;opacity:.5;}
+.nb-avatar{font-size:24px;margin-bottom:6px;}
+.nb-name{font-size:12px;font-weight:700;line-height:1.3;}
+.nb-voted{font-size:10px;color:var(--g);font-weight:700;margin-top:3px;}
+
+
+/* ── PUNCH INTRO CARD ── */
+.punch-card{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#F3EEFF 0%,#EDE5FF 100%);border:2px solid #C9B6F5;border-radius:18px;padding:14px 16px;margin-bottom:20px;}
+.punch-avatar-emoji{width:66px;height:66px;border-radius:50%;flex-shrink:0;box-shadow:0 2px 10px rgba(140,90,220,.25);border:2px solid #C9B6F5;background:linear-gradient(135deg,#E8D5FF,#D4B8FF);display:flex;align-items:center;justify-content:center;font-size:34px;}
+.punch-bubble{flex:1;}
+.punch-from{font-size:10px;font-weight:800;letter-spacing:.5px;color:#7B4FC9;text-transform:uppercase;margin-bottom:3px;}
+.punch-msg{font-size:13px;font-weight:600;color:#2d1f4a;line-height:1.5;}
+.punch-sub{font-size:11px;color:#7B4FC9;margin-top:3px;}
+
+/* ── MENU ── */
+.menu-hdr{margin-bottom:14px;}
+.menu-hdr h2{font-size:18px;font-weight:800;}
+.n-badge{display:inline-flex;align-items:center;gap:6px;background:var(--gl);color:var(--gd);font-weight:700;font-size:12px;padding:4px 12px;border-radius:20px;margin-bottom:12px;}
+.group-hdr{font-size:12px;font-weight:800;color:var(--gd);padding:7px 11px;background:var(--gl);border-radius:8px;margin-bottom:12px;}
+.subcat{margin-bottom:16px;}
+.subcat-lbl{font-size:9px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--mu);margin-bottom:8px;padding-left:7px;border-left:3px solid var(--g);}
+.mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+@media(min-width:460px){.mgrid{grid-template-columns:repeat(4,1fr);}}
+@media(min-width:560px){.mgrid{grid-template-columns:repeat(5,1fr);}}
+
+/* ── MENU ITEM CARD ── */
+.mi{background:var(--w);border:2px solid var(--bd);border-radius:12px;cursor:pointer;transition:all .18s;position:relative;user-select:none;overflow:hidden;display:flex;flex-direction:column;}
+.mi:hover{border-color:var(--g);box-shadow:0 4px 14px rgba(0,0,0,.12);transform:translateY(-2px);}
+.mi.sel{border-color:var(--g);}
+/* selected count badge */
+.mi .sel-badge{display:none;position:absolute;top:5px;right:5px;background:var(--g);color:#fff;width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:900;align-items:center;justify-content:center;z-index:2;}
+.mi.sel .sel-badge{display:flex;}
+.mi-img-wrap{width:100%;aspect-ratio:1/1;background:#f7f7f7;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.mi-img-wrap img{width:90%;height:90%;object-fit:contain;transition:transform .2s;}
+.mi:hover .mi-img-wrap img{transform:scale(1.05);}
+.mi-info{padding:6px 6px 7px;text-align:center;}
+.mi-n{font-size:9px;font-weight:700;line-height:1.3;color:var(--tx);}
+.mi-p{font-size:9px;color:var(--mu);margin-top:2px;}
+
+/* ── SELECTION BAR ── */
+.selbar{position:fixed;bottom:0;left:0;right:0;background:var(--gd);color:#fff;padding:11px 16px;display:flex;align-items:center;gap:9px;z-index:200;transform:translateY(100%);transition:transform .28s cubic-bezier(.25,.8,.25,1);}
+.selbar.vis{transform:translateY(0);}
+.sel-cnt{background:var(--gold);color:var(--gd);font-weight:900;font-size:14px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sel-t{flex:1;font-size:11px;}
+.sel-it{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px;}
+
+/* ── CUSTOMIZATION MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal-sheet{background:var(--w);border-radius:22px 22px 0 0;width:100%;max-width:640px;padding:0 0 32px;transform:translateY(100%);transition:transform .3s cubic-bezier(.25,.8,.25,1);max-height:90vh;overflow-y:auto;}
+.modal-overlay.open .modal-sheet{transform:translateY(0);}
+
+.modal-drag{width:40px;height:4px;background:var(--bd);border-radius:4px;margin:12px auto 0;}
+.modal-img{width:140px;height:140px;object-fit:contain;display:block;margin:16px auto 0;}
+.modal-name{font-size:16px;font-weight:800;text-align:center;margin:10px 20px 4px;}
+.modal-base-price{text-align:center;font-size:12px;color:var(--mu);margin-bottom:20px;}
+
+.opt-section{padding:0 20px;margin-bottom:16px;}
+.opt-label{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:8px;}
+
+/* HOT / ICE toggle */
+.temp-row{display:flex;gap:8px;}
+.temp-btn{flex:1;padding:10px 8px;border:2px solid var(--bd);border-radius:12px;background:var(--w);cursor:pointer;text-align:center;transition:all .18s;font-family:var(--font);}
+.temp-btn:hover{border-color:var(--g);}
+.temp-btn.active{border-color:var(--g);background:var(--gl);}
+.temp-icon{font-size:20px;display:block;margin-bottom:3px;}
+.temp-name{font-size:11px;font-weight:700;color:var(--tx);}
+
+/* SIZE buttons */
+.size-row{display:flex;gap:6px;}
+.size-btn{flex:1;padding:10px 4px;border:2px solid var(--bd);border-radius:10px;background:var(--w);cursor:pointer;text-align:center;transition:all .18s;font-family:var(--font);}
+.size-btn:hover{border-color:var(--g);}
+.size-btn.active{border-color:var(--g);background:var(--gl);}
+.size-btn:disabled{opacity:.35;cursor:not-allowed;border-color:var(--bd);background:var(--w);}
+.sz-letter{font-size:16px;font-weight:900;color:var(--gd);}
+.sz-name{font-size:9px;color:var(--mu);margin-top:1px;}
+.sz-price{font-size:10px;font-weight:700;color:var(--g);margin-top:2px;}
+
+.modal-price-display{text-align:center;font-size:22px;font-weight:900;color:var(--gd);margin:4px 20px 16px;}
+.modal-price-display span{font-size:13px;font-weight:400;color:var(--mu);}
+
+.modal-add-btn{display:block;margin:0 20px;padding:14px;background:var(--g);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer;width:calc(100% - 40px);transition:all .2s;}
+.modal-add-btn:hover{background:var(--gd);}
+.modal-cancel{display:block;margin:8px 20px 0;padding:10px;background:none;border:none;font-size:12px;color:var(--mu);cursor:pointer;font-family:var(--font);width:calc(100% - 40px);}
+
+/* ── CONFIRM ── */
+.ccard{background:var(--w);border-radius:20px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+.ccard h2{font-size:17px;font-weight:800;margin-bottom:16px;}
+.olist{list-style:none;margin-bottom:18px;}
+.olist li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd);font-size:12px;}
+.olist li:last-child{border-bottom:none;}
+.o-thumb{width:36px;height:36px;border-radius:8px;background:#f0f0f0;object-fit:contain;flex-shrink:0;}
+.on{font-weight:600;flex:1;font-size:12px;line-height:1.4;}
+.o-tag{display:inline-block;background:var(--gl);color:var(--gd);font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;margin-top:2px;}
+.op{color:var(--mu);font-size:11px;white-space:nowrap;}
+
+/* ── DONE ── */
+.dcard{background:var(--w);border-radius:20px;padding:40px 22px;box-shadow:0 2px 12px rgba(0,0,0,.08);text-align:center;}
+.dcard .big{font-size:56px;margin-bottom:16px;animation:pop .45s cubic-bezier(.175,.885,.32,1.275);}
+@keyframes pop{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}
+.dcard h2{font-size:21px;font-weight:800;margin-bottom:8px;}
+.dcard p{color:var(--mu);font-size:13px;line-height:1.7;}
+
+/* ── ADMIN ── */
+.admin-scr{display:none;}.admin-scr.active{display:block;}
+.adm{max-width:640px;margin:0 auto;padding:18px 14px 80px;}
+.adm-hdr{display:flex;align-items:center;gap:9px;margin-bottom:16px;}
+.adm-hdr h2{font-size:18px;font-weight:800;}
+.ldot{width:8px;height:8px;background:#22C55E;border-radius:50%;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4);}50%{opacity:.7;box-shadow:0 0 0 5px rgba(34,197,94,0);}}
+.adm-meta{font-size:11px;color:var(--mu);margin-bottom:16px;}
+.stats{background:var(--gd);color:#fff;border-radius:18px;padding:18px 22px;margin-bottom:18px;display:flex;gap:24px;flex-wrap:wrap;}
+.stat-l{font-size:9px;color:rgba(255,255,255,.5);margin-bottom:2px;}
+.stat-n{font-size:32px;font-weight:900;}
+.asec-t{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;padding-left:7px;border-left:3px solid var(--gold);}
+/* Item ranking rows */
+.arow{background:var(--w);border-radius:12px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.07);}
+.a-thumb{width:36px;height:36px;border-radius:8px;object-fit:contain;background:#f7f7f7;flex-shrink:0;}
+.a-info{min-width:0;}
+.an{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+.a-tag{font-size:9px;color:var(--mu);margin-top:1px;}
+.bwrap{flex:1;min-width:50px;}
+.bbg{background:var(--bd);border-radius:4px;height:6px;overflow:hidden;}
+.bfill{background:linear-gradient(90deg,var(--g),var(--gold));height:100%;border-radius:4px;transition:width .55s cubic-bezier(.25,.8,.25,1);}
+.ac{font-size:17px;font-weight:900;color:var(--gd);flex-shrink:0;min-width:26px;text-align:right;}
+/* Participant table */
+.vtable{background:var(--w);border-radius:18px;box-shadow:0 1px 6px rgba(0,0,0,.07);margin-top:18px;overflow:hidden;}
+.vtable-hdr{background:var(--gd);color:#fff;padding:12px 16px;font-size:12px;font-weight:700;}
+.vrow{display:flex;align-items:flex-start;padding:10px 16px;border-bottom:1px solid var(--bd);gap:10px;}
+.vrow:last-child{border-bottom:none;}
+.vrow-name{font-size:12px;font-weight:700;min-width:110px;flex-shrink:0;}
+.vrow-status{font-size:10px;}
+.vrow-items{flex:1;font-size:10px;color:var(--mu);line-height:1.6;}
+.tag-hot{display:inline-block;background:#FFF0E6;color:#D06000;font-size:8px;font-weight:800;padding:1px 4px;border-radius:4px;margin-right:2px;}
+.tag-ice{display:inline-block;background:#E6F0FF;color:#0060D0;font-size:8px;font-weight:800;padding:1px 4px;border-radius:4px;margin-right:2px;}
+.tag-size{display:inline-block;background:var(--gl);color:var(--gd);font-size:8px;font-weight:700;padding:1px 4px;border-radius:4px;margin-right:2px;}
+
+.rbtn{margin-top:24px;background:none;border:1px solid var(--red);color:var(--red);font-size:11px;padding:8px 16px;border-radius:12px;cursor:pointer;transition:all .2s;}
+.rbtn:hover{background:var(--red);color:#fff;}
+
+/* ── BUTTONS ── */
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .2s;}
+.btn-g{background:var(--g);color:#fff;}
+.btn-g:hover{background:var(--gd);transform:translateY(-1px);box-shadow:0 5px 20px rgba(0,0,0,.15);}
+.btn-g:disabled{background:var(--bd);color:var(--mu);cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-s{background:none;border:2px solid var(--bd);color:var(--mu);margin-top:7px;}
+.btn-s:hover{border-color:var(--g);color:var(--g);}
+.btn-gold{background:var(--gold);color:var(--gd);}
+.btn-gold:hover{background:#B8922A;transform:translateY(-1px);}
+.btnwrap{position:fixed;bottom:0;left:0;right:0;padding:10px 14px;background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:100;}
+.btnwrap .btn{max-width:640px;margin:0 auto;}
+.toast{position:fixed;bottom:68px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--gd);color:#fff;padding:9px 16px;border-radius:40px;font-size:11px;font-weight:600;opacity:0;transition:all .25s;z-index:600;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.lding{text-align:center;padding:36px;color:var(--mu);font-size:12px;}
+.spin{width:26px;height:26px;border:3px solid var(--bd);border-top-color:var(--g);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">☕</div>
+  <div>
+    <div class="h-title">Starbucks atré Meguro 1</div>
+    <div class="h-sub">Starbucks Coffee — atré Meguro 1</div>
+  </div>
+  <button class="h-btn" onclick="toggleAdmin()">📊 Summary</button>
+</header>
+
+<div class="pg" id="pgWrap">
+  <div class="pg-steps">
+    <div class="stp act" id="stp1"><div class="stp-n">1</div><div class="stp-l">Name</div></div>
+    <div class="stp" id="stp2"><div class="stp-n">2</div><div class="stp-l">Menu</div></div>
+    <div class="stp" id="stp3"><div class="stp-n">3</div><div class="stp-l">Review</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- CUSTOMIZATION MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOnBg(event)">
+  <div class="modal-sheet" id="modalSheet">
+    <div class="modal-drag"></div>
+    <img class="modal-img" id="modalImg" src="" alt="">
+    <div class="modal-name" id="modalName"></div>
+    <div class="modal-base-price" id="modalBasePrice"></div>
+
+    <!-- HOT / ICE -->
+    <div class="opt-section" id="tempSection">
+      <div class="opt-label">Temperature</div>
+      <div class="temp-row">
+        <button class="temp-btn" id="btnHot" onclick="setTemp('hot')">
+          <span class="temp-icon">☕</span>
+          <span class="temp-name">Hot</span>
+        </button>
+        <button class="temp-btn" id="btnIce" onclick="setTemp('ice')">
+          <span class="temp-icon">🧊</span>
+          <span class="temp-name">Iced</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SIZE -->
+    <div class="opt-section">
+      <div class="opt-label">Size</div>
+      <div class="size-row" id="sizeRow"></div>
+    </div>
+
+    <!-- PRICE DISPLAY -->
+    <div class="modal-price-display" id="modalPriceDisplay">¥— <span>(incl. tax)</span></div>
+
+    <button class="modal-add-btn" onclick="addToCart()">Add to Cart +</button>
+    <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<main id="mainContent">
+  <!-- SCREEN 1: NAME -->
+  <div class="screen active" id="sName">
+    <div class="name-hdr">
+      <div class="ico">☕</div>
+      <h2>Who are you?</h2>
+      <p>Select your name to proceed to the menu.<br>One submission per person.</p>
+    </div>
+    <div class="punch-card">
+      <div class="punch-avatar-emoji">🐒</div>
+      <div class="punch-bubble">
+        <div class="punch-from">Asumi's Assistant</div>
+        <div class="punch-msg">Hi! I'm Punch 👊<br>I'll be taking your orders today ☕</div>
+        <div class="punch-sub">Tap your name to start!</div>
+      </div>
+    </div>
+    <div class="name-grid" id="nameGrid"></div>
+  </div>
+
+  <!-- SCREEN 2: MENU -->
+  <div class="screen" id="sMenu">
+    <div class="menu-hdr">
+      <div class="n-badge" id="nameBadge">---</div>
+      <h2>What would you like?</h2>
+      <p style="font-size:11px;color:var(--mu);">Tap a drink to choose size & temperature</p>
+    </div>
+    <div id="menuSections"></div>
+    <div style="height:80px;"></div>
+  </div>
+
+  <!-- SCREEN 3: CONFIRM -->
+  <div class="screen" id="sConfirm">
+    <div class="ccard">
+      <h2>📋 Review Your Order</h2>
+      <ul class="olist" id="confirmList"></ul>
+      <button class="btn btn-gold" onclick="submitOrder()">✅ Place Order</button>
+      <button class="btn btn-s" onclick="goBackToMenu()">← Go Back</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 4: DONE -->
+  <div class="screen" id="sDone">
+    <div class="dcard">
+      <div class="big">🎉</div>
+      <h2>Order Placed! 🎉</h2>
+      <p>Thank you! We'll let you know when the order is ready ☕<br><br>
+      <strong id="doneName"></strong>'s order has been saved.</p>
+      <br>
+      <button class="btn btn-g" style="max-width:200px;margin:0 auto;" onclick="viewResults()">📊 View Everyone's Orders</button>
+    </div>
+  </div>
+</main>
+
+<div class="selbar" id="selbar">
+  <div class="sel-cnt" id="selCnt">0</div>
+  <div class="sel-t">Selected<div class="sel-it" id="selItems"></div></div>
+</div>
+<div class="btnwrap" id="btnWrap" style="display:none;">
+  <button class="btn btn-g" id="btnNext" onclick="goToConfirm()" disabled>Select items first</button>
+</div>
+
+<!-- ADMIN -->
+<div class="admin-scr" id="adminScr">
+  <div class="adm">
+    <div class="adm-hdr"><div class="ldot"></div><h2>Live Order Summary</h2></div>
+    <div class="adm-meta" id="admMeta">Loading...</div>
+    <div class="stats">
+      <div><div class="stat-l">Total Orders</div><div class="stat-n" id="totOrders">0</div></div>
+      <div><div class="stat-l">Participants</div><div class="stat-n" id="totPeople">0</div></div>
+      <div><div class="stat-l">Est. Total</div><div class="stat-n" id="totAmount" style="font-size:22px;">¥0</div></div>
+    </div>
+    <div class="asec-t" style="margin-bottom:12px;">Orders by Item</div>
+    <div id="admList"><div class="lding"><div class="spin"></div>Loading...</div></div>
+    <div class="vtable" id="vtable">
+      <div class="vtable-hdr">📝 Participant Status (11)</div>
+      <div id="voterRows"></div>
+    </div>
+    <button class="rbtn" onclick="resetAll()">🗑 Reset All Data</button>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   🔥 FIREBASE CONFIG
+================================================================ */
+const firebaseConfig = {
+  apiKey:            "AIzaSyCkUTdZG7Qz_yTyCH8Co1EWZ-ybyrADT28",
+  authDomain:        "starbucks-meguro.firebaseapp.com",
+  projectId:         "starbucks-meguro",
+  storageBucket:     "starbucks-meguro.firebasestorage.app",
+  messagingSenderId: "270301699760",
+  appId:             "1:270301699760:web:d8385fb59a5f28facce575"
+};
+let db=null, useFirebase=false;
+try{firebase.initializeApp(firebaseConfig);db=firebase.firestore();useFirebase=!firebaseConfig.apiKey.includes('YOUR');}catch(e){}
+
+/* ================================================================
+   PARTICIPANTS
+================================================================ */
+const PEOPLE=[
+  {id:'paul',      name:'Paul',      last:'Firth'},
+  {id:'kai',       name:'Kai',       last:'Fukazawa'},
+  {id:'kiel',      name:'Kiel',      last:'Hamm'},
+  {id:'eric',      name:'Eric',      last:'Jung'},
+  {id:'paloma',    name:'Paloma',    last:'Andres'},
+  {id:'catherine', name:'Catherine', last:'Leung'},
+  {id:'asumi',     name:'Asumi',     last:'Takebayashi'},
+  {id:'robin',     name:'Robin',     last:'Sakai'},
+  {id:'kei',       name:'Kei',       last:'Morikawa'},
+  {id:'shivani',   name:'Shivani',   last:'Nehru'},
+  {id:'sho',       name:'Sho',       last:'Ninagawa'},
+];
+
+/* ================================================================
+   SIZE CONFIG
+   basePrice = Short price (from API min)
+   Increments: S→T +55, T→G +55, G→V +55 (Starbucks JP standard)
+================================================================ */
+const SIZES = [
+  {key:'S', label:'Short',  inc:0},
+  {key:'T', label:'Tall',   inc:55},
+  {key:'G', label:'Grande', inc:110},
+  {key:'V', label:'Venti',  inc:165},
+];
+
+/* drink types:
+   'hot_ice' = both hot and iced
+   'ice_only' = iced only (cold brew, frappuccino)
+   'hot_only' = hot only
+   'none'     = food, no temp/size
+*/
+const DRINK_CATS = {
+  drip:     'hot_ice',
+  espresso: 'hot_ice',
+  frappuccino: 'ice_only',
+  tea:      'hot_ice',
+  others:   'hot_ice',
+  food:     'none',
+};
+
+/* ================================================================
+   MENU DATA — with real images
+================================================================ */
+const MENU = {
+  drinks:[
+    {label:'☕ Coffee', type:'hot_ice', items:[
+      {id:'d01',name:'Brewed Coffee',        basePrice:394, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785000018/4524785000018_11.jpg'},
+      {id:'d02',name:'Caffè Misto',              basePrice:449, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785062870/4524785062870_11.jpg'},
+      {id:'d03',name:'Cold Brew Coffee',  basePrice:451, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785324732/4524785324732_11.jpg', tempType:'ice_only'},
+      {id:'d04',name:'Sweet Milk Coffee',    basePrice:530, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785599772/4524785599772_11.jpg', tempType:'ice_only'},
+    ]},
+    {label:'☕ Espresso', type:'hot_ice', items:[
+      {id:'d05',name:'Bitter Cream Coffee',   basePrice:550, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785607736/4524785607736_11.jpg'},
+      {id:'d06',name:'Caramel Macchiato',      basePrice:540, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785019232/4524785019232_11.jpg'},
+      {id:'d07',name:'Starbucks Latte',        basePrice:460, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785000223/4524785000223_11.jpg'},
+      {id:'d08',name:'Soy Latte',                  basePrice:460, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785047396/4524785047396_11.jpg'},
+      {id:'d09',name:'Almond Milk Latte',      basePrice:460, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785433106/4524785433106_11.jpg'},
+      {id:'d10',name:'Oat Milk Latte',          basePrice:460, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785433021/4524785433021_11.jpg'},
+      {id:'d11',name:'Cappuccino',                 basePrice:460, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785000285/4524785000285_11.jpg'},
+      {id:'d12',name:'Caffè Mocha',                basePrice:515, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785000254/4524785000254_11.jpg'},
+      {id:'d13',name:'White Mocha',              basePrice:515, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785034532/4524785034532_11.jpg'},
+      {id:'d14',name:'Caffè Americano',        basePrice:451, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785000315/4524785000315_11.jpg'},
+      {id:'d15',name:'Espresso',               basePrice:430, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785000346/4524785000346_11.jpg', tempType:'hot_only'},
+    ]},
+    {label:'🧋 Frappuccino®', type:'ice_only', items:[
+      {id:'d16',name:'Peach & Peach Milk Frappuccino®',         basePrice:720, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785618312/4524785618312_11.jpg'},
+      {id:'d17',name:'Coffee Frappuccino®',                      basePrice:515, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785165731/4524785165731_11.jpg'},
+      {id:'d18',name:'Dark Mocha Chip Frappuccino®',            basePrice:555, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785166059/4524785166059_11.jpg'},
+      {id:'d19',name:'Caramel Frappuccino®',                    basePrice:570, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785165816/4524785165816_11.jpg'},
+      {id:'d20',name:'Matcha Cream Frappuccino®',                 basePrice:555, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785165892/4524785165892_11.jpg'},
+      {id:'d21',name:'Vanilla Cream Frappuccino®',               basePrice:570, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785165939/4524785165939_11.jpg'},
+      {id:'d22',name:'Mango Passion Tea Frappuccino®',    basePrice:550, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785118751/4524785118751_11.jpg'},
+    ]},
+    {label:'🫖 Tea', type:'hot_ice', items:[
+      {id:'d23',name:'Craft Juicy Peach Tea',           basePrice:630, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785607781/4524785607781_11.jpg', tempType:'ice_only'},
+      {id:'d24',name:'Peach Creamy Tea Latte',              basePrice:680, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785652033/4524785652033_11.jpg', tempType:'ice_only'},
+      {id:'d25',name:'Earl Grey Bouquet & Tea Latte',          basePrice:540, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785600546/4524785600546_11.jpg'},
+      {id:'d26',name:'Hojicha & Classic Tea Latte',           basePrice:530, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785557185/4524785557185_11.jpg'},
+      {id:'d27',name:'Yuzu Citrus & Tea',                     basePrice:510, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785461154/4524785461154_11.jpg'},
+      {id:'d28',name:'Chai Tea Latte',                         basePrice:510, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785034204/4524785034204_11.jpg'},
+      {id:'d29',name:'Matcha Tea Latte',                           basePrice:510, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785106499/4524785106499_11.jpg'},
+      {id:'d30',name:'Iced Tea (Black)',                      basePrice:445, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785024748/4524785024748_11.jpg', tempType:'ice_only'},
+      {id:'d31',name:'Iced Tea (Passion)',                    basePrice:445, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785349193/4524785349193_11.jpg', tempType:'ice_only'},
+    ]},
+    {label:'🥤 Other', type:'hot_ice', items:[
+      {id:'d32',name:'Chilax Soda Peach',        basePrice:590, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785603042/4524785603042_11.jpg', tempType:'ice_only'},
+      {id:'d33',name:'Chilax Soda Yuzu Citrus',  basePrice:590, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785584655/4524785584655_11.jpg', tempType:'ice_only'},
+      {id:'d34',name:'White Chocolate Milk',    basePrice:460, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785034938/4524785034938_11.jpg'},
+      {id:'d35',name:'Milk',                          basePrice:405, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785000735/4524785000735_11.jpg'},
+    ]},
+  ],
+  food:[
+    {label:'🍰 Dessert', type:'none', items:[
+      {id:'f01',name:'New York Cheesecake',         price:490, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785308985/4524785308985_11.jpg'},
+      {id:'f02',name:'Earl Grey Basque Cheesecake',  price:520, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785625303/4524785625303_11.jpg'},
+      {id:'f03',name:'Blueberry Rare Cheesecake',     price:570, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785628311/4524785628311_11.jpg'},
+      {id:'f04',name:'White Peach & Earl Grey Tart',          price:580, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785632448/4524785632448_11.jpg'},
+      {id:'f05',name:'Banana & Caramel Cake',          price:540, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785632431/4524785632431_11.jpg'},
+      {id:'f06',name:'Cream Chiffon Cake',           price:490, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785625297/4524785625297_11.jpg'},
+      {id:'f07',name:'Chocolate Terrine',             price:540, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785628328/4524785628328_11.jpg'},
+    ]},
+    {label:'🥐 Pastry', type:'none', items:[
+      {id:'f08',name:'Sugar Doughnut',                 price:290, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785508385/4524785508385_11.jpg'},
+      {id:'f09',name:'Banana Choco Doughnut',             price:310, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785632400/4524785632400_11.jpg'},
+      {id:'f10',name:'Strawberry Doughnut',             price:310, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785591547/4524785591547_11.jpg'},
+      {id:'f11',name:'Vanilla Old Fashion Doughnut',price:310,img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785626072/4524785626072_11.jpg'},
+      {id:'f12',name:'Chocolate Chunk Scone',     price:280, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785614512/4524785614512_11.jpg'},
+      {id:'f13',name:'Blueberry Scone',             price:290, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785628243/4524785628243_11.jpg'},
+      {id:'f14',name:'Chocolate Babka',               price:390, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785617865/4524785617865_11.jpg'},
+      {id:'f15',name:'Cinnamon Roll',                   price:420, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785591523/4524785591523_11.jpg'},
+      {id:'f16',name:'American Waffle',               price:290, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785466562/4524785466562_11.jpg'},
+      {id:'f17',name:'Lemon Cube Cake',             price:300, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785632424/4524785632424_11.jpg'},
+      {id:'f18',name:'Anko Butter Scone Sandwich',         price:390, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785628267/4524785628267_11.jpg'},
+      {id:'f19',name:'Sugar Doughnut Balls',          price:370, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785598119/4524785598119_11.jpg'},
+      {id:'f20',name:'Bacon & Spinach Quiche',   price:490, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785561427/4524785561427_11.jpg'},
+      {id:'f21',name:'Coarse Sausage Pie',           price:380, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785461512/4524785461512_11.jpg'},
+    ]},
+    {label:'🥪 Sandwiches & Food', type:'none', items:[
+      {id:'f22',name:'Ham & Mariboe Cheese Stone-Oven Filone',    price:490, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785447462/4524785447462_11.jpg'},
+      {id:'f23',name:'Herb Sausage Stone-Oven Filone',       price:620, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785626096/4524785626096_11.jpg'},
+      {id:'f24',name:'Chicken & Cheese Arrabbiata Filone',price:570,img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785628281/4524785628281_11.jpg'},
+      {id:'f25',name:'Chicken & Cheese Hot Tortilla',     price:570, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785578395/4524785578395_11.jpg'},
+      {id:'f26',name:'Basil Pork Hot Tortilla',       price:620, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785628304/4524785628304_11.jpg'},
+      {id:'f27',name:'Croque Monsieur',                      price:440, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785626119/4524785626119_11.jpg'},
+      {id:'f28',name:'Blueberry Bagel Sandwich',           price:390, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785566026/4524785566026_11.jpg'},
+      {id:'f29',name:'Club House Campagne Sandwich',   price:660, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785625280/4524785625280_11.jpg'},
+      {id:'f30',name:'Pork Katsu Campagne Sandwich',     price:690, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785628298/4524785628298_11.jpg'},
+      {id:'f31',name:'Ham & Cheese Campagne Sandwich',   price:590, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785598140/4524785598140_11.jpg'},
+      {id:'f32',name:'Root Veg Chicken Salad Wrap',               price:460, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785598126/4524785598126_11.jpg'},
+      {id:'f33',name:'Taco Salad Wrap',                   price:530, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785632417/4524785632417_11.jpg'},
+      {id:'f34',name:'Yogurt & Banana Granola',           price:360, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785625891/4524785625891_11.jpg'},
+      {id:'f35',name:'Acai Berry Yogurt & Granola', price:390, img:'https://asset.menu.starbucks.co.jp/public/sku_images/4524785625907/4524785625907_11.jpg'},
+    ]},
+  ]
+};
+
+/* STATE */
+let currentPerson=null;
+let cart=[];           // array of cart entries (allows duplicates with different options)
+let isAdmin=false, adminUnsub=null;
+let modalItem=null, modalTemp='hot', modalSize='T'; // current modal state
+
+function getVotedLocal(){try{return JSON.parse(localStorage.getItem('sbux_voted')||'{}');}catch{return {};}}
+function setVotedLocal(id){const v=getVotedLocal();v[id]=true;localStorage.setItem('sbux_voted',JSON.stringify(v));}
+
+/* ================================================================
+   INIT
+================================================================ */
+document.addEventListener('DOMContentLoaded',()=>{
+  renderNameGrid();
+  renderMenuSections();
+  if(window.location.hash==='#admin')showAdmin();
+  if(!useFirebase){
+    const b=document.createElement('div');
+    b.style.cssText='background:#FFF3CD;border-bottom:1px solid #F0D060;padding:7px 16px;font-size:11px;color:#7A5F00;text-align:center;position:relative;z-index:50;';
+    b.innerHTML='⚠️ <b>Demo Mode</b>: Firebase not configured. Running locally on this device only.';
+    document.body.insertBefore(b,document.body.firstChild);
+  }
+});
+
+/* ================================================================
+   NAME GRID
+================================================================ */
+async function renderNameGrid(){
+  const grid=document.getElementById('nameGrid');
+  let votedFB={};
+  if(useFirebase){try{const s=await db.collection('votes').get();s.forEach(d=>{votedFB[d.id]=true;});}catch(e){}}
+  const votedL=getVotedLocal();
+  PEOPLE.forEach(p=>{
+    const voted=useFirebase?!!votedFB[p.id]:!!votedL[p.id];
+    const btn=document.createElement('div');
+    btn.className='name-btn'+(voted?' voted':'');
+    btn.id='nb-'+p.id;
+    btn.innerHTML=`<div class="nb-avatar">👤</div><div class="nb-name">${p.name}<br><span style="font-weight:400;color:var(--mu);font-size:10px;">${p.last}</span></div>${voted?'<div class="nb-voted">✅ Submitted</div>':''}`;
+    if(!voted)btn.addEventListener('click',()=>pickName(p,btn));
+    grid.appendChild(btn);
+  });
+}
+function pickName(p,btn){
+  document.querySelectorAll('.name-btn.picked').forEach(b=>b.classList.remove('picked'));
+  btn.classList.add('picked');currentPerson=p;
+  setTimeout(()=>{if(currentPerson?.id===p.id)proceedToMenu();},350);
+}
+async function proceedToMenu(){
+  if(!currentPerson)return;
+  if(useFirebase){try{const s=await db.collection('votes').doc(currentPerson.id).get();if(s.exists){const b=document.getElementById('nb-'+currentPerson.id);if(b){b.classList.remove('picked');b.classList.add('voted');}showToast(currentPerson.name+' has already submitted their order ✋');currentPerson=null;return;}}catch(e){}}
+  document.getElementById('nameBadge').textContent='👤 '+currentPerson.name+' '+currentPerson.last;
+  cart=[];
+  showScreen('sMenu');setStep(2);
+  document.getElementById('btnWrap').style.display='block';
+  document.getElementById('selbar').classList.remove('vis');
+}
+
+/* ================================================================
+   MENU RENDER
+================================================================ */
+function renderMenuSections(){
+  const wrap=document.getElementById('menuSections');
+  [{title:'☕ Drinks',key:'drinks'},{title:'🍰 Food',key:'food'}].forEach(group=>{
+    const sec=document.createElement('div');sec.style.marginBottom='20px';
+    const gh=document.createElement('div');gh.className='group-hdr';gh.textContent=group.title;sec.appendChild(gh);
+    MENU[group.key].forEach(sub=>{
+      const div=document.createElement('div');div.className='subcat';
+      const lbl=document.createElement('div');lbl.className='subcat-lbl';lbl.textContent=sub.label;div.appendChild(lbl);
+      const g=document.createElement('div');g.className='mgrid';
+      sub.items.forEach(item=>{
+        const isDrink=group.key==='drinks';
+        const el=document.createElement('div');el.className='mi';el.id='mi-'+item.id;
+        const displayPrice=isDrink?item.basePrice:item.price;
+        el.innerHTML=`
+          <div class="sel-badge" id="badge-${item.id}">1</div>
+          <div class="mi-img-wrap"><img src="${item.img}" alt="${item.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div style=font-size:28px;padding:20px>☕</div>'"></div>
+          <div class="mi-info">
+            <div class="mi-n">${item.name}</div>
+            <div class="mi-p">¥${displayPrice.toLocaleString()}~</div>
+          </div>`;
+        if(isDrink){
+          el.addEventListener('click',()=>openModal(item));
+        } else {
+          el.addEventListener('click',()=>toggleFood(item,el));
+        }
+        g.appendChild(el);
+      });
+      div.appendChild(g);sec.appendChild(div);
+    });
+    wrap.appendChild(sec);
+  });
+}
+
+/* ================================================================
+   FOOD TOGGLE (no options needed)
+================================================================ */
+function toggleFood(item, el){
+  const idx=cart.findIndex(c=>c.id===item.id);
+  if(idx>=0){
+    cart.splice(idx,1);
+    el.classList.remove('sel');
+    const badge=document.getElementById('badge-'+item.id);
+    if(badge)badge.textContent='';
+  } else {
+    cart.push({id:item.id, name:item.name, img:item.img, price:item.price, label:item.name});
+    el.classList.add('sel');
+    const badge=document.getElementById('badge-'+item.id);
+    if(badge)badge.textContent='1';
+  }
+  updateSelbar();updateNextBtn();
+}
+
+/* ================================================================
+   DRINK MODAL
+================================================================ */
+function openModal(item){
+  modalItem=item;
+  const tt=item.tempType||'hot_ice';
+  // default temp
+  modalTemp=(tt==='ice_only'?'ice':'hot');
+  modalSize='T';
+
+  document.getElementById('modalImg').src=item.img;
+  document.getElementById('modalName').textContent=item.name;
+  document.getElementById('modalBasePrice').textContent='Short ¥'+item.basePrice.toLocaleString()+'〜';
+
+  // temp buttons
+  const tSec=document.getElementById('tempSection');
+  const btnH=document.getElementById('btnHot');
+  const btnI=document.getElementById('btnIce');
+  if(tt==='hot_only'){tSec.style.display='none';}
+  else if(tt==='ice_only'){tSec.style.display='none';modalTemp='ice';}
+  else{
+    tSec.style.display='block';
+    btnH.classList.toggle('active',modalTemp==='hot');
+    btnI.classList.toggle('active',modalTemp==='ice');
+  }
+
+  renderSizes(tt);
+  updateModalPrice();
+
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow='';
+  modalItem=null;
+}
+function closeModalOnBg(e){if(e.target===document.getElementById('modalOverlay'))closeModal();}
+
+function setTemp(t){
+  modalTemp=t;
+  document.getElementById('btnHot').classList.toggle('active',t==='hot');
+  document.getElementById('btnIce').classList.toggle('active',t==='ice');
+  // iced → no Short
+  if(t==='ice'&&modalSize==='S')modalSize='T';
+  renderSizes(modalItem?.tempType||'hot_ice');
+  updateModalPrice();
+}
+
+function renderSizes(tt){
+  const row=document.getElementById('sizeRow');
+  row.innerHTML='';
+  SIZES.forEach(sz=>{
+    const isIced=(tt==='ice_only'||modalTemp==='ice');
+    const disabled=(sz.key==='S'&&isIced);
+    const p=modalItem.basePrice+sz.inc;
+    const btn=document.createElement('button');
+    btn.className='size-btn'+(sz.key===modalSize?' active':'')+(disabled?' disabled':'');
+    btn.disabled=disabled;
+    btn.innerHTML=`<div class="sz-letter">${sz.key}</div><div class="sz-name">${sz.label}</div><div class="sz-price">¥${p.toLocaleString()}</div>`;
+    btn.onclick=()=>{if(!disabled){modalSize=sz.key;renderSizes(tt);updateModalPrice();}};
+    row.appendChild(btn);
+  });
+}
+
+function updateModalPrice(){
+  if(!modalItem)return;
+  const sz=SIZES.find(s=>s.key===modalSize);
+  const p=modalItem.basePrice+(sz?sz.inc:0);
+  document.getElementById('modalPriceDisplay').innerHTML=`¥${p.toLocaleString()} <span>(est. incl. tax)</span>`;
+}
+
+function addToCart(){
+  if(!modalItem)return;
+  const sz=SIZES.find(s=>s.key===modalSize);
+  const price=modalItem.basePrice+(sz?sz.inc:0);
+  const tempLabel=modalTemp==='hot'?'Hot':'Iced';
+  const sizeLabel=sz?sz.label:'Tall';
+
+  // allow same drink multiple times with different options → use cartKey
+  const cartKey=`${modalItem.id}_${modalTemp}_${modalSize}`;
+  const existing=cart.find(c=>c.cartKey===cartKey);
+  if(existing){
+    closeModal();
+    showToast('This option is already in your cart');
+    return;
+  }
+
+  cart.push({
+    cartKey,
+    id: modalItem.id,
+    name: modalItem.name,
+    img: modalItem.img,
+    price,
+    temp: modalTemp,
+    size: modalSize,
+    label: `${modalItem.name} (${tempLabel}/${sizeLabel})`
+  });
+
+  // update card badge
+  const el=document.getElementById('mi-'+modalItem.id);
+  const badge=document.getElementById('badge-'+modalItem.id);
+  const count=cart.filter(c=>c.id===modalItem.id).length;
+  if(el)el.classList.add('sel');
+  if(badge)badge.textContent=count;
+
+  closeModal();
+  updateSelbar();
+  updateNextBtn();
+  showToast(`${modalItem.name} (${tempLabel}/${sizeLabel}) added ✓`);
+}
+
+/* ================================================================
+   SELBAR / NEXT BTN
+================================================================ */
+function updateSelbar(){
+  const cnt=cart.length;
+  document.getElementById('selCnt').textContent=cnt;
+  const bar=document.getElementById('selbar');
+  if(cnt>0){
+    bar.classList.add('vis');
+    const ns=cart.map(c=>{
+      const short=c.name.length>8?c.name.slice(0,8)+'…':c.name;
+      return short+(c.size?`/${c.size}`:'');
+    });
+    document.getElementById('selItems').textContent=ns.slice(0,3).join(', ')+(ns.length>3?` +${ns.length-3} more`:'');
+  } else bar.classList.remove('vis');
+}
+function updateNextBtn(){
+  const btn=document.getElementById('btnNext'),cnt=cart.length;
+  btn.disabled=cnt===0;
+  btn.textContent=cnt>0?`${cnt} item${cnt>1?'s':''} — Review →`:'Select items first';
+}
+
+/* ================================================================
+   NAVIGATION
+================================================================ */
+function goToConfirm(){
+  if(!cart.length)return;
+  const list=document.getElementById('confirmList');list.innerHTML='';
+  cart.forEach(item=>{
+    const li=document.createElement('li');
+    const tags=[];
+    if(item.temp){
+      tags.push(item.temp==='hot'
+        ?'<span class="tag-hot">HOT</span>'
+        :'<span class="tag-ice">ICE</span>');
+    }
+    if(item.size)tags.push(`<span class="tag-size">${item.size}</span>`);
+    li.innerHTML=`<img class="o-thumb" src="${item.img}" alt="${item.name}" onerror="this.style.display='none'">
+      <span class="on">${item.name}${tags.length?'<br>'+tags.join(''):''}</span>
+      <span class="op">¥${item.price.toLocaleString()}</span>`;
+    list.appendChild(li);
+  });
+  const total=cart.reduce((s,i)=>s+i.price,0);
+  const li=document.createElement('li');
+  li.innerHTML=`<span style="font-weight:800;flex:1">Total (est.)</span><span style="font-weight:900;color:var(--gd)">¥${total.toLocaleString()}</span>`;
+  li.style.borderTop='2px solid var(--bd)';list.appendChild(li);
+  showScreen('sConfirm');setStep(3);
+  document.getElementById('btnWrap').style.display='none';
+  document.getElementById('selbar').classList.remove('vis');
+}
+function goBackToMenu(){
+  showScreen('sMenu');setStep(2);
+  document.getElementById('btnWrap').style.display='block';
+  updateSelbar();
+}
+
+/* ================================================================
+   SUBMIT
+================================================================ */
+async function submitOrder(){
+  if(!currentPerson||!cart.length)return;
+  const btn=document.querySelector('#sConfirm .btn-gold');
+  btn.disabled=true;btn.textContent='Submitting...';
+  const data={
+    id:currentPerson.id,
+    name:currentPerson.name+' '+currentPerson.last,
+    items:cart.map(c=>({id:c.id,name:c.name,img:c.img,price:c.price,temp:c.temp||null,size:c.size||null,label:c.label})),
+    timestamp:useFirebase?firebase.firestore.FieldValue.serverTimestamp():new Date().toISOString(),
+    total:cart.reduce((s,i)=>s+i.price,0)
+  };
+  try{
+    if(useFirebase)await db.collection('votes').doc(currentPerson.id).set(data);
+    else{const all=JSON.parse(localStorage.getItem('sbux_all_votes')||'{}');all[currentPerson.id]=data;localStorage.setItem('sbux_all_votes',JSON.stringify(all));}
+    setVotedLocal(currentPerson.id);
+    document.getElementById('doneName').textContent=currentPerson.name;
+    showScreen('sDone');document.getElementById('pgWrap').style.display='none';
+    showToast('Order submitted! ☕');
+  }catch(e){btn.disabled=false;btn.textContent='✅ Place Order';showToast('Error: '+e.message);}
+}
+
+/* ================================================================
+   ADMIN
+================================================================ */
+function toggleAdmin(){isAdmin?hideAdmin():showAdmin();}
+function showAdmin(){
+  isAdmin=true;
+  document.getElementById('mainContent').style.display='none';
+  document.getElementById('pgWrap').style.display='none';
+  document.getElementById('adminScr').classList.add('active');
+  document.querySelector('.h-btn').textContent='← Back to Order';
+  window.location.hash='admin';
+  startAdminListener();
+}
+function hideAdmin(){
+  isAdmin=false;
+  document.getElementById('mainContent').style.display='block';
+  document.getElementById('pgWrap').style.display='block';
+  document.getElementById('adminScr').classList.remove('active');
+  document.querySelector('.h-btn').textContent='📊 Summary';
+  window.location.hash='';
+  if(adminUnsub){adminUnsub();adminUnsub=null;}
+}
+function viewResults(){showAdmin();}
+
+function startAdminListener(){
+  if(adminUnsub)adminUnsub();
+  if(useFirebase){
+    adminUnsub=db.collection('votes').onSnapshot(snap=>{
+      const v=[];snap.forEach(d=>v.push(d.data()));
+      renderAdmin(v);
+    },err=>{
+      document.getElementById('admList').innerHTML=`<div style="color:var(--red);padding:14px;font-size:12px;background:var(--w);border-radius:12px;">⚠️ Firebase not connected. Please check your config.<br><small>${err.message}</small></div>`;
+    });
+  } else {
+    const all=JSON.parse(localStorage.getItem('sbux_all_votes')||'{}');
+    renderAdmin(Object.values(all));
+  }
+}
+
+function renderAdmin(votes){
+  // ── stats ──
+  const totalPeople=votes.length;
+  const totalAmount=votes.reduce((s,v)=>s+(v.total||0),0);
+  const counts={};
+  votes.forEach(v=>{
+    (v.items||[]).forEach(item=>{
+      const key=item.label||item.name;
+      if(!counts[key])counts[key]={count:0,item};
+      counts[key].count++;
+    });
+  });
+  const totalOrders=Object.values(counts).reduce((s,v)=>s+v.count,0);
+  const maxC=Math.max(...Object.values(counts).map(v=>v.count),1);
+
+  document.getElementById('totOrders').textContent=totalOrders;
+  document.getElementById('totPeople').textContent=totalPeople;
+  document.getElementById('totAmount').textContent='¥'+totalAmount.toLocaleString();
+  document.getElementById('admMeta').textContent=
+    `Last updated: ${new Date().toLocaleTimeString('en-US')} — ${totalPeople}/11 participants`;
+
+  // ── item ranking ──
+  const sorted=Object.values(counts).sort((a,b)=>b.count-a.count);
+  if(!sorted.length){
+    document.getElementById('admList').innerHTML=
+      '<div style="text-align:center;padding:28px;color:var(--mu);font-size:13px;background:var(--w);border-radius:12px;">No orders yet</div>';
+  } else {
+    document.getElementById('admList').innerHTML=sorted.map(({count,item})=>{
+      const tempTag=item.temp==='hot'?'<span class="tag-hot">HOT</span>':item.temp==='ice'?'<span class="tag-ice">ICE</span>':'';
+      const szTag=item.size?`<span class="tag-size">${item.size}</span>`:'';
+      return `<div class="arow">
+        <img class="a-thumb" src="${item.img||''}" alt="${item.name}" onerror="this.style.display='none'">
+        <div class="a-info">
+          <div class="an">${item.name}</div>
+          <div class="a-tag">${tempTag}${szTag}</div>
+        </div>
+        <div class="bwrap"><div class="bbg"><div class="bfill" style="width:${Math.round(count/maxC*100)}%"></div></div></div>
+        <div class="ac">${count}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── participant table ──
+  const votedMap={};votes.forEach(v=>{votedMap[v.id]=v;});
+  document.getElementById('voterRows').innerHTML=PEOPLE.map(p=>{
+    const v=votedMap[p.id];
+    if(v){
+      const itemsHtml=(v.items||[]).map(i=>{
+        const tempTag=i.temp==='hot'?'<span class="tag-hot">HOT</span>':i.temp==='ice'?'<span class="tag-ice">ICE</span>':'';
+        const szTag=i.size?`<span class="tag-size">${i.size}</span>`:'';
+        return `${i.name.slice(0,12)} ${tempTag}${szTag}`;
+      }).join('<br>');
+      return `<div class="vrow">
+        <div class="vrow-name">✅ ${p.name}<br><span style="font-weight:400;color:var(--mu);font-size:10px;">${p.last}</span></div>
+        <div class="vrow-items">${itemsHtml}<br><span style="font-weight:700;color:var(--gd)">¥${(v.total||0).toLocaleString()}</span></div>
+      </div>`;
+    }
+    return `<div class="vrow" style="opacity:.5">
+      <div class="vrow-name">⏳ ${p.name}<br><span style="font-weight:400;color:var(--mu);font-size:10px;">${p.last}</span></div>
+      <div class="vrow-items" style="color:var(--mu)">Pending</div>
+    </div>`;
+  }).join('');
+}
+
+async function resetAll(){
+  if(!confirm('Delete all data? This cannot be undone.'))return;
+  try{
+    if(useFirebase){const s=await db.collection('votes').get();const b=db.batch();s.forEach(d=>b.delete(d.ref));await b.commit();}
+    localStorage.removeItem('sbux_all_votes');localStorage.removeItem('sbux_voted');
+    document.querySelectorAll('.name-btn.voted').forEach(b=>{b.classList.remove('voted');});
+    showToast('Data has been reset');
+    if(!useFirebase)renderAdmin([]);
+  }catch(e){showToast('Error: '+e.message);}
+}
+
+/* UTILS */
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function setStep(n){for(let i=1;i<=3;i++){const e=document.getElementById('stp'+i);e.classList.remove('act','done');if(i<n)e.classList.add('done');else if(i===n)e.classList.add('act');}}
+function showToast(msg,dur=2800){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+</script>
+</body>
+</html>
