@@ -588,7 +588,6 @@ async function proceedToMenu(){
   cart=[];
   showScreen('sMenu');setStep(2);
   document.getElementById('cartBar').classList.add('vis');
-  // selbar merged;
 }
 
 /* ================================================================
@@ -764,14 +763,14 @@ function addToCart(){
 function updateSelbar(){
   const cnt=cart.length;
   document.getElementById('selCnt').textContent=cnt;
-  const bar=document.getElementById('selbar');
+  const bar=document.getElementById('cartBar');
   if(cnt>0){
     bar.classList.add('vis');
     const ns=cart.map(c=>{
       const short=c.name.length>8?c.name.slice(0,8)+'…':c.name;
       return short+(c.size?`/${c.size}`:'');
     });
-    document.getElementById('selItems').textContent=ns.slice(0,3).join(', ')+(ns.length>3?` +${ns.length-3} more`:'');
+    document.getElementById('selItems').textContent=ns.slice(0,2).join(', ')+(ns.length>2?` +${ns.length-2} more`:'');
   } else bar.classList.remove('vis');
 }
 function updateNextBtn(){
@@ -806,7 +805,6 @@ function goToConfirm(){
   li.style.borderTop='2px solid var(--bd)';list.appendChild(li);
   showScreen('sConfirm');setStep(3);
   document.getElementById('cartBar').classList.remove('vis');
-  // selbar merged;
 }
 function goBackToMenu(){
   showScreen('sMenu');setStep(2);
