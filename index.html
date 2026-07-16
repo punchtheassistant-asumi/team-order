@@ -932,13 +932,13 @@ async function resetAll(){
     if(useFirebase){const s=await db.collection('votes').get();const b=db.batch();s.forEach(d=>b.delete(d.ref));await b.commit();}
     localStorage.removeItem('sbux_all_votes');localStorage.removeItem('sbux_voted');
     document.querySelectorAll('.name-btn.voted').forEach(b=>{b.classList.remove('voted');});
-    showToast('Data has been reset');
+    showToast('Data has been reset');renderAlreadyOrdered();;
     if(!useFirebase)renderAdmin([]);
   }catch(e){showToast('Error: '+e.message);}
 }
 
 /* UTILS */
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='sName')renderAlreadyOrdered();}
 function setStep(n){for(let i=1;i<=3;i++){const e=document.getElementById('stp'+i);e.classList.remove('act','done');if(i<n)e.classList.add('done');else if(i===n)e.classList.add('act');}}
 function showToast(msg,dur=2800){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
 </script>
