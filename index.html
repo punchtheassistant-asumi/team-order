@@ -938,7 +938,7 @@ function renderAdmin(votes){
 }
 
 async function resetAll(){
-  if(!confirm('Delete all data? This cannot be undone.'))return;
+  const pin=prompt('Enter admin PIN to reset:');if(pin===null)return;if(pin!=='661405'){showToast('Incorrect PIN ❌');return;}if(!confirm('Delete all data? This cannot be undone.'))return;
   try{
     if(useFirebase){const s=await db.collection('votes').get();const b=db.batch();s.forEach(d=>b.delete(d.ref));await b.commit();}
     localStorage.removeItem('sbux_all_votes');localStorage.removeItem('sbux_voted');
